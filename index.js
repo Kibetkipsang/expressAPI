@@ -3,7 +3,7 @@ import express from 'express';
 
 const client = new PrismaClient();
 const app = express();
-app.use(express.json);
+app.use(express.json());
 
 // get all users 
 
@@ -11,7 +11,7 @@ app.get("/users", async (request, response) => {
     try {
         const users = await client.user.findMany()
         if (users.length === 0){
-            return res.status(404).json({
+            return response.status(404).json({
                 message: "No users found"
             })
         }
@@ -25,21 +25,24 @@ app.get("/users", async (request, response) => {
 
 app.get("/users/:id", async (req, res) => {
     try{
-        const {id} = req.params
-        const user = await client.user.findUnique({
+        const id = parseInt(req.params.id)
+        const user = await client.user.findFirst({
             where: {
                 id: id
             }
         });
         if(!user){
-            res.status(500).json({
+            res.status(404).json({
                 message: "user not found"
             })
         }
 
         console.log(user)
         res.status(200).json(user)
-    }catch(err){}
+    }catch(err){
+        console.log(err)
+        res.status(500).json({message: "Something went wrong"})
+    }
 })
 
 app.post("/users", async (req, res) => {
@@ -68,10 +71,10 @@ app.post("/users", async (req, res) => {
 
 app.patch("/users/:id", async (req, res) => {
     try{
-        const id = req.params.id;
+        const id = parseInt(req.params.id);
         const {firstName, lastName, email} = req.body;
         
-        const user =client.user.findunique({
+        const user = await client.user.findUnique({
             where: {id: id}
         })
         if (!user){
@@ -96,22 +99,24 @@ app.patch("/users/:id", async (req, res) => {
 })
 
 app.delete("/users/:id", async (req, res) => {
-    try{
-        const id = req.params.id;
-        const deletedUser = await client.user.delete({
-            where: {id: id}
-        });
-        if (!deletedUser){
-            return res.status(404).json({
-                message: "User not found"
-            })
-        }
-        console.log(deletedUser)
-        res.status(200).json({message: `User deleted successfully (${id})`, id})
-    }catch(err){
-        res.status(500).json({message: "Something went wrong"})
+  try {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid user id" });
     }
-})
+
+    const deletedUser = await client.user.delete({
+      where: { id },
+    });
+
+    console.log(deletedUser);
+    res.status(200).json({ message: `User deleted successfully (${id})` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+});
 
 const port = 5000;
 app.listen(port, ()=>{
